@@ -9,17 +9,10 @@
 [functions]
   node_bundler = "nft"
   # file yang dibaca lewat fs saat runtime (karakter, data game)
-  included_files = ["char/**", "data/**", "public/index.html", "package.json"]
+  included_files = ["char/**", "data/**", "public/index.html"]
 
 [functions."api"]
   timeout = 26
-
-# API -> Express
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
-  status = 200
-  force = true
 
 # URL per layar (SPA, lihat public/router.js)
 [[redirects]]

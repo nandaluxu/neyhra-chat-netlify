@@ -1,39 +1,50 @@
-// Entry Netlify: semua /api/* diarahkan ke sini (lihat netlify.toml), lalu ditangani Express (lib/app.js).
-// App dimuat lewat import dinamis supaya kalau gagal dimuat, penyebabnya tampil di /api/_diag (bukan 502 kosong).
-const PREFIX = '/.netlify/functions/api'
-let inner = null, loadError = null
+// Netlify Functions v2 (ESM murni): semua /api/* (lihat config.path) diteruskan ke Express (lib/app.js).
+// Express dijalankan sebagai server HTTP lokal (127.0.0.1) di dalam function, lalu request diteruskan lewat fetch.
+// Tanpa pembungkus CommonJS / serverless-http, jadi cocok dengan "type": "module" di package.json.
+import http from 'node:http'
 
-async function boot() {
-  if (inner || loadError) return
-  try {
-    const [{ default: serverless }, { default: app }] = await Promise.all([import('serverless-http'), import('../../lib/app.js')])
-    inner = serverless(app, { binary: ['audio/*', 'image/*', 'application/octet-stream'] })
-  } catch (e) {
-    loadError = e
-    console.error('[api] gagal memuat app:', e)
-  }
+export const config = { path: '/api/*' }
+
+let booting = null
+function start() {
+  return booting ??= (async () => {
+    const { default: app } = await import('../../lib/app.js')
+    const server = http.createServer(app)
+    await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve) })
+    return server.address().port
+  })().catch(e => { booting = null; throw e })
 }
 
-export const handler = async (event, context) => {
-  let p = event.path || '/'
-  if (p.startsWith(PREFIX)) p = p.slice(PREFIX.length) || '/'
-  if (!p.startsWith('/api')) p = '/api' + (p.startsWith('/') ? p : '/' + p)
+const DROP = new Set(['transfer-encoding', 'connection', 'keep-alive', 'content-encoding', 'content-length'])
 
-  await boot()
-  if (p === '/api/_diag' || loadError) {
-    return {
-      statusCode: loadError ? 500 : 200,
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        ok: !loadError,
-        node: process.version,
-        cwd: process.cwd(),
-        task: process.env.LAMBDA_TASK_ROOT || null,
-        netlify: !!process.env.NETLIFY,
-        mongo: !!(process.env.MONGODB_URI || process.env.MONGO_URL),
-        error: loadError ? { name: loadError.name, message: String(loadError.message).slice(0, 600), code: loadError.code || null, stack: String(loadError.stack || '').split('\n').slice(0, 6) } : null
-      })
-    }
+export default async (req, context) => {
+  const url = new URL(req.url)
+  let port
+  try { port = await start() }
+  catch (e) {
+    console.error('[api] gagal memuat app:', e)
+    return Response.json({
+      ok: false,
+      error: { name: e?.name, message: String(e?.message || e).slice(0, 600), code: e?.code || null, stack: String(e?.stack || '').split('\n').slice(0, 6) }
+    }, { status: 500 })
   }
-  return inner({ ...event, path: p }, context)
+  if (url.pathname === '/api/_diag') {
+    return Response.json({ ok: true, node: process.version, cwd: process.cwd(), mongo: !!(process.env.MONGODB_URI || process.env.MONGO_URL), redis: !!(process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL) })
+  }
+
+  const headers = new Headers(req.headers)
+  headers.set('accept-encoding', 'identity')
+  headers.delete('content-length')
+  const hasBody = !['GET', 'HEAD'].includes(req.method) && req.body
+  const upstream = await fetch(`http://127.0.0.1:${port}${url.pathname}${url.search}`, {
+    method: req.method,
+    headers,
+    body: hasBody ? req.body : undefined,
+    duplex: hasBody ? 'half' : undefined,
+    redirect: 'manual'
+  })
+  const out = new Headers()
+  upstream.headers.forEach((v, k) => { if (!DROP.has(k.toLowerCase())) out.append(k, v) })
+  for (const c of upstream.headers.getSetCookie?.() || []) if (!out.has('set-cookie')) out.append('set-cookie', c)
+  return new Response(upstream.body, { status: upstream.status, statusText: upstream.statusText, headers: out })
 }
