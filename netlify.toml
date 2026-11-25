@@ -9,7 +9,7 @@
 [functions]
   node_bundler = "esbuild"
   # file yang dibaca lewat fs saat runtime (karakter, data game)
-  included_files = ["char/**", "data/**", "public/index.html"]
+  included_files = ["char/**", "data/**", "public/index.html", "package.json"]
   external_node_modules = ["youtubei.js", "mongodb"]
 
 [functions."api"]
