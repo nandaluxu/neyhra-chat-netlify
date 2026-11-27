@@ -56,6 +56,7 @@ const photoLabel = m => m.text || (m.img ? '📷 Foto' : ''); // pratinjau teks 
 /* ---------- Kerangka DOM ---------- */
 app.insertAdjacentHTML('beforeend', `
 <section id="gc" aria-label="Chat global" aria-hidden="true">
+<div class="gc-card">
   <header>
     <button id="gc-back" type="button" title="Kembali" aria-label="Kembali">${I.back}</button>
     <span class="gc-ico" aria-hidden="true">${I.globe}</span>
@@ -78,33 +79,7 @@ app.insertAdjacentHTML('beforeend', `
     <button id="gc-down" type="button" title="Ke pesan terbaru" aria-label="Ke pesan terbaru"><span id="gc-newn" class="hide"></span>${I.down}</button>
     <div id="gc-toast" role="status"></div>
   </div>
-  <aside id="gc-side" aria-label="Info ruang">
-    <div class="gs-hero">
-      <span class="gs-globe" aria-hidden="true">${I.globe}</span>
-      <h2>Chat Global</h2>
-      <p>Satu ruang untuk semua pengguna Neyhra Chat. Sapa siapa saja.</p>
-      <div class="gs-live" id="gs-live" data-s="offline"><i></i><span id="gs-live-t">Offline</span></div>
-    </div>
-    <div class="gs-stats">
-      <div><b id="gs-n-on">–</b><span>Online</span></div>
-      <div><b id="gs-n-msg">0</b><span>Pesan dimuat</span></div>
-      <div><b id="gs-n-usr">0</b><span>Pengirim</span></div>
-    </div>
-    <section class="gs-card">
-      <h3>Kamu</h3>
-      <div class="gs-me"><span class="gs-av" id="gs-av" aria-hidden="true">T</span><div><b id="gs-name">Tamu</b><small id="gs-sub"></small></div></div>
-      <button class="gs-login hide" id="gs-login" type="button">Masuk untuk pakai nama &amp; fotomu</button>
-    </section>
-    <section class="gs-card">
-      <h3>Tips</h3>
-      <ul class="gs-tips">
-        <li><kbd>Enter</kbd> kirim, <kbd>Shift</kbd> + <kbd>Enter</kbd> baris baru.</li>
-        <li>Arahkan kursor ke pesan, klik ikon panah untuk membalas.</li>
-        <li>Maksimal ${MAX} karakter per pesan. Kirim gambar butuh akun.</li>
-        <li>Pesan baru muncul otomatis, riwayat lama dimuat saat kamu gulir ke atas.</li>
-      </ul>
-    </section>
-  </aside>
+</div>
 </section>
 <div id="gc-info-ov" class="gc-ov hide">
   <div class="nbox sbox" role="dialog" aria-labelledby="gc-info-t">
@@ -154,8 +129,7 @@ function toast(t) { const e = $('gc-toast'); e.textContent = t; e.classList.add(
 
 /* ---------- StatusHeader (+ titik status di tombol menu) ---------- */
 function paintStatus(s) {
-  const pct = s.sync && s.sync.total ? Math.round(s.sync.done / s.sync.total * 100) : 0;
-  const t = { online: 'Online' + (s.onlineCount ? ' · ' + s.onlineCount + ' aktif' : ''), connecting: 'Menghubungkan…', syncing: 'Sinkronisasi ' + pct + '%', offline: 'Offline' }[s.status];
+  const t = { online: s.onlineCount ? s.onlineCount + ' orang aktif' : 'Online', connecting: 'Menghubungkan…', syncing: 'Memuat obrolan…', offline: 'Tidak terhubung' }[s.status];
   $('gc-status').dataset.s = s.status; $('gc-stxt').textContent = t;
 }
 function paintMenuDot(s) { const d = document.querySelector('#gcbtn .gc-dot'); if (d) d.dataset.s = started ? s.status : 'idle'; }
@@ -170,7 +144,7 @@ function paintBanner(s) {
   if (key !== bannerKey) {
     bannerKey = key;
     if (s.status === 'connecting') banner.innerHTML = `<span class="gc-bi gc-spin">${I.sync}</span><div class="gc-bt"><b>Menghubungkan…</b><small>Memuat pesan terbaru.</small></div>`;
-    else if (s.status === 'syncing') banner.innerHTML = `<span class="gc-bi gc-spin">${I.sync}</span><div class="gc-bt"><b>Menyinkronkan riwayat</b><small id="gc-ssub"></small></div><div class="gc-bar"><i id="gc-sbar"></i></div>`;
+    else if (s.status === 'syncing') banner.innerHTML = `<span class="gc-bi gc-spin">${I.sync}</span><div class="gc-bt"><b>Memuat obrolan</b><small id="gc-ssub"></small></div><div class="gc-bar"><i id="gc-sbar"></i></div>`;
     else {
       banner.innerHTML = `<span class="gc-bi">${I.offline}</span><div class="gc-bt"><b></b><small>Pesan yang sudah dimuat tetap bisa dibaca, tapi kamu belum bisa kirim pesan.</small></div><button class="gc-btn" type="button" data-act="reconnect">Coba lagi</button>`;
       banner.querySelector('b').textContent = s.error || 'Kamu sedang offline';
@@ -178,7 +152,7 @@ function paintBanner(s) {
   }
   if (s.status === 'syncing') {
     const y = s.sync || { done: 0, total: 0, peers: 0 };
-    $('gc-ssub').textContent = 'Mengambil dari ' + y.peers + ' pengguna lain · ' + y.done + ' dari ' + y.total + ' pesan';
+    $('gc-ssub').textContent = 'Sebentar ya, obrolan sebelumnya sedang diambil.';
     $('gc-sbar').style.width = (y.total ? y.done / y.total * 100 : 0) + '%';
   }
 }
@@ -186,7 +160,7 @@ function paintBanner(s) {
 /* ---------- MessageList ---------- */
 function skeleton(s) {
   const w = el('div', 'gc-skwrap');
-  w.append(el('p', 'gc-skcap', s.status === 'syncing' ? 'Menunggu riwayat dari pengguna lain…' : 'Menghubungkan…'));
+  w.append(el('p', 'gc-skcap', s.status === 'syncing' ? 'Memuat obrolan…' : 'Menghubungkan…'));
   [[62, 'them'], [44, 'them'], [56, 'me'], [70, 'them'], [38, 'me']].forEach(([p, c]) => { const r = el('div', 'gc-sk ' + c), i = el('i'); i.style.width = p + '%'; r.append(i); w.append(r); });
   return w;
 }
@@ -577,27 +551,10 @@ gc.addEventListener('keydown', e => {
 });
 
 /* ---------- Render utama ---------- */
-/* ---------- Panel samping (desktop lebar): status ruang, statistik, identitas ---------- */
-let sidePhoto = '';
-function paintSide(s) {
-  $('gs-live').dataset.s = s.status; $('gs-live-t').textContent = $('gc-stxt').textContent;
-  $('gs-n-on').textContent = s.status === 'online' && s.onlineCount != null ? s.onlineCount : '–';
-  const msgs = s.messages;
-  $('gs-n-msg').textContent = msgs.length + (s.more ? '+' : '');
-  $('gs-n-usr').textContent = new Set(msgs.map(authorKey)).size;
-  const name = selfName(), guest = !(typeof uname === 'string' && uname), av = $('gs-av');
-  $('gs-name').textContent = name;
-  $('gs-sub').textContent = guest ? 'Belum masuk akun' : 'Masuk sebagai akunmu';
-  $('gs-login').classList.toggle('hide', !guest);
-  av.style.setProperty('--h', hue(name));
-  const mineMsg = guest ? null : [...msgs].reverse().find(m => isMine(m) && avUrl(m)), u = mineMsg ? avUrl(mineMsg) : '';
-  if (u !== sidePhoto || av.dataset.n !== name) { sidePhoto = u; av.dataset.n = name; av.textContent = [...name][0] || '?'; if (u) addPhoto(av, mineMsg); }
-}
-$('gs-login').onclick = () => { close(); openLogin(); };
 function render(s, force) {
   paintMenuDot(s);
   if (!isOpen) return;
-  paintStatus(s); paintBanner(s); paintComposer(s); paintSide(s);
+  paintStatus(s); paintBanner(s); paintComposer(s);
   const key = s.rev + '|' + (s.messages.length ? '' : s.status + (s.error || ''));
   if (force || key !== listKey) { listKey = key; paintList(s); }
   paintDev(s);
