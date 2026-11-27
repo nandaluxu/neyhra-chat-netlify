@@ -78,6 +78,33 @@ app.insertAdjacentHTML('beforeend', `
     <button id="gc-down" type="button" title="Ke pesan terbaru" aria-label="Ke pesan terbaru"><span id="gc-newn" class="hide"></span>${I.down}</button>
     <div id="gc-toast" role="status"></div>
   </div>
+  <aside id="gc-side" aria-label="Info ruang">
+    <div class="gs-hero">
+      <span class="gs-globe" aria-hidden="true">${I.globe}</span>
+      <h2>Chat Global</h2>
+      <p>Satu ruang untuk semua pengguna Neyhra Chat. Sapa siapa saja.</p>
+      <div class="gs-live" id="gs-live" data-s="offline"><i></i><span id="gs-live-t">Offline</span></div>
+    </div>
+    <div class="gs-stats">
+      <div><b id="gs-n-on">–</b><span>Online</span></div>
+      <div><b id="gs-n-msg">0</b><span>Pesan dimuat</span></div>
+      <div><b id="gs-n-usr">0</b><span>Pengirim</span></div>
+    </div>
+    <section class="gs-card">
+      <h3>Kamu</h3>
+      <div class="gs-me"><span class="gs-av" id="gs-av" aria-hidden="true">T</span><div><b id="gs-name">Tamu</b><small id="gs-sub"></small></div></div>
+      <button class="gs-login hide" id="gs-login" type="button">Masuk untuk pakai nama &amp; fotomu</button>
+    </section>
+    <section class="gs-card">
+      <h3>Tips</h3>
+      <ul class="gs-tips">
+        <li><kbd>Enter</kbd> kirim, <kbd>Shift</kbd> + <kbd>Enter</kbd> baris baru.</li>
+        <li>Arahkan kursor ke pesan, klik ikon panah untuk membalas.</li>
+        <li>Maksimal ${MAX} karakter per pesan. Kirim gambar butuh akun.</li>
+        <li>Pesan baru muncul otomatis, riwayat lama dimuat saat kamu gulir ke atas.</li>
+      </ul>
+    </section>
+  </aside>
 </section>
 <div id="gc-info-ov" class="gc-ov hide">
   <div class="nbox sbox" role="dialog" aria-labelledby="gc-info-t">
@@ -550,10 +577,27 @@ gc.addEventListener('keydown', e => {
 });
 
 /* ---------- Render utama ---------- */
+/* ---------- Panel samping (desktop lebar): status ruang, statistik, identitas ---------- */
+let sidePhoto = '';
+function paintSide(s) {
+  $('gs-live').dataset.s = s.status; $('gs-live-t').textContent = $('gc-stxt').textContent;
+  $('gs-n-on').textContent = s.status === 'online' && s.onlineCount != null ? s.onlineCount : '–';
+  const msgs = s.messages;
+  $('gs-n-msg').textContent = msgs.length + (s.more ? '+' : '');
+  $('gs-n-usr').textContent = new Set(msgs.map(authorKey)).size;
+  const name = selfName(), guest = !(typeof uname === 'string' && uname), av = $('gs-av');
+  $('gs-name').textContent = name;
+  $('gs-sub').textContent = guest ? 'Belum masuk akun' : 'Masuk sebagai akunmu';
+  $('gs-login').classList.toggle('hide', !guest);
+  av.style.setProperty('--h', hue(name));
+  const mineMsg = guest ? null : [...msgs].reverse().find(m => isMine(m) && avUrl(m)), u = mineMsg ? avUrl(mineMsg) : '';
+  if (u !== sidePhoto || av.dataset.n !== name) { sidePhoto = u; av.dataset.n = name; av.textContent = [...name][0] || '?'; if (u) addPhoto(av, mineMsg); }
+}
+$('gs-login').onclick = () => { close(); openLogin(); };
 function render(s, force) {
   paintMenuDot(s);
   if (!isOpen) return;
-  paintStatus(s); paintBanner(s); paintComposer(s);
+  paintStatus(s); paintBanner(s); paintComposer(s); paintSide(s);
   const key = s.rev + '|' + (s.messages.length ? '' : s.status + (s.error || ''));
   if (force || key !== listKey) { listKey = key; paintList(s); }
   paintDev(s);
