@@ -210,11 +210,9 @@ function imgNode(m) {
 function bubble(m, o, find) {
   const r = el('div', 'gc-msg ' + (o.mine ? 'me' : 'them') + (o.first ? ' first' : '') + (o.last ? ' last' : '') + (o.fresh ? ' new' : '') + (m.status === 'sending' ? ' sending' : '') + (m.status === 'failed' ? ' failed' : ''));
   r.dataset.id = m.id;
-  const who = o.mine ? selfName() : m.senderName, showAv = o.first || o.last; // HP (gelembung): avatar di pesan terakhir grup, hanya orang lain. Desktop (feed): avatar + nama di pesan pertama grup, termasuk milikmu
-  r.style.setProperty('--h', hue(o.mine ? 'me:' + who : m.senderId));
-  const av = el('span', showAv ? 'gc-av' : 'gc-av sp', showAv ? [...who][0] || '?' : ''); av.setAttribute('aria-hidden', 'true'); if (showAv) addPhoto(av, m); r.append(av);
+  if (!o.mine) { r.style.setProperty('--h', hue(m.senderId)); const av = el('span', o.last ? 'gc-av' : 'gc-av sp', o.last ? [...m.senderName][0] || '?' : ''); av.setAttribute('aria-hidden', 'true'); if (o.last) addPhoto(av, m); r.append(av); }
   const b = el('div', 'gc-b');
-  if (o.first) b.append(el('div', 'gc-n', o.mine ? 'Kamu' : m.senderName));
+  if (!o.mine && o.first) b.append(el('div', 'gc-n', m.senderName));
   if (m.replyTo) b.append(replyQuote(m, find));
   if (m.img) b.append(imgNode(m));
   if (m.text) b.append(el('div', 'gc-t', m.text));
