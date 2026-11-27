@@ -599,7 +599,7 @@ header .pfp,header .who{cursor:pointer}
 <link rel="stylesheet" href="/profile.css?v=20261119h">
 <link rel="stylesheet" href="/notify.css">
 <link rel="stylesheet" href="/music.css">
-<link rel="stylesheet" href="/login.css">
+<link rel="stylesheet" href="/login.css?v=20261127a">
 <link rel="stylesheet" href="/chatui.css">
 <link rel="stylesheet" href="/minigame.css?v=20261124a">
 <link rel="stylesheet" href="/bg.css?v=20261124a">
@@ -2248,7 +2248,7 @@ const saveWallet=w=>{ store.set('wallet',w?JSON.stringify({coins:w.coins,gems:w.
 function paintAcct(cloud){
   syncUname();
   window.__acctSeen=1; window.dispatchEvent(new Event('acct')); /* bonus.js ikut menyegarkan (status akun / masuk / keluar berubah) */
-  sacct.classList.toggle('hide',!(aOn&&atok)); /* belum masuk: grup Akun tidak ada di Pengaturan (login = overlay, openLogin() di login.js) */
+  sacct.classList.toggle('hide',!(aOn&&atok)); /* belum masuk: grup Akun tidak ada di Pengaturan (login = halaman penuh, openLogin() di login.js) */
   ain.classList.toggle('hide',!atok);
   if(atok){ $('aname').textContent=store.get('authname')||''; if(cloud!==undefined) $('acloud').textContent=cloud?fmtB(cloud.size)+' · '+new Date(cloud.updatedAt).toLocaleString('id-ID',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'belum ada'; }
 }
@@ -3576,7 +3576,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) setTimeo
 <script src="/vision.js"></script>
 <script src="/call.js"></script>
 <script src="/tools/tools.js"></script>
-<script src="/login.js"></script>
+<script src="/login.js?v=20261127a"></script>
 <script src="/router.js"></script>
 <script src="/bg.js?v=20261124a"></script>
 </body>

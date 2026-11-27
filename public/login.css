@@ -1,30 +1,221 @@
-/* ===== Overlay Masuk / Daftar / Google + pilih username =====
-   Logika di login.js. Pola modal sama dengan #nmodal dkk (index.html): menutupi #app, bottom sheet di layar kecil. */
-#lmodal{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.45);backdrop-filter:blur(3px);animation:lfade .2s ease}
-#lmodal.hide{display:none}
-@keyframes lfade{from{opacity:0}}
-.lbox{position:relative;width:100%;max-width:380px;max-height:100%;overflow-y:auto;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:22px;padding:24px 20px 20px;animation:nin .25s cubic-bezier(.2,.9,.3,1.2)}
-.lbox h2{font-size:20px;font-weight:700;letter-spacing:-.02em;padding-right:34px}
-.lsub{margin-top:6px;font-size:13px;line-height:1.45;color:var(--mut)}
-.lx{position:absolute;top:14px;right:14px;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;color:var(--mut)}
-.lx:hover{background:var(--surface);color:var(--ink)}
-.lx svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
-#lgwrap{margin-top:18px}
-#lgbtn{display:flex;justify-content:center;min-height:44px}
-.lor{display:flex;align-items:center;gap:10px;margin:14px 0 2px;font-size:12px;color:var(--mut)}
+/* ===== Halaman Masuk / Daftar (layar penuh) + pilih username =====
+   Logika di login.js. Halaman ini menutupi SELURUH #app (termasuk rail navigasi kiri), jadi terasa seperti halaman baru.
+   Desktop (>=800px): dua panel 50/50.
+     mode "login"    = form di KIRI, panel brand di kanan.
+     mode "register" = form bergeser ke KANAN, panel brand bergeser ke kiri (keduanya bertukar tempat).
+     mode "username" = seperti login (langkah pilih username setelah daftar lewat Google).
+   Mobile (<800px): header brand ringkas di atas, tab Masuk | Daftar, form di bawah.
+   Satu-satunya penentu tampilan adalah atribut data-mode di #lpage. */
+
+#lpage{
+  --lg1:#6366f1;--lg2:#a855f7;--lg3:#6d28d9;
+  --lease:cubic-bezier(.77,0,.18,1);
+  position:absolute;inset:0;z-index:90;overflow:hidden;
+  display:flex;flex-direction:column;
+  background:var(--bg);color:var(--ink);
+  animation:lpin .28s ease;
+}
+#lpage.hide{display:none}
+@keyframes lpin{from{opacity:0}}
+
+/* ---------- tombol kembali ke beranda ---------- */
+.lback{
+  position:absolute;top:calc(14px + env(safe-area-inset-top,0px));left:14px;z-index:6;
+  display:inline-flex;align-items:center;gap:4px;padding:9px 15px 9px 9px;border-radius:999px;
+  font-size:13.5px;font-weight:600;letter-spacing:-.01em;
+  color:#fff;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  transition:background .3s,color .3s,border-color .3s,transform .15s;
+}
+.lback:hover{background:rgba(255,255,255,.28)}
+.lback:active{transform:scale(.96)}
+.lback svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
+.lback:hover svg{transform:translateX(-2px)}
+.lback .lb-long{display:none}
+
+/* ---------- panel brand ---------- */
+.lbrand{
+  position:relative;flex:none;overflow:hidden;color:#fff;
+  background:linear-gradient(135deg,var(--lg1) 0%,var(--lg2) 100%);
+  border-radius:0 0 30px 30px;
+  padding:calc(64px + env(safe-area-inset-top,0px)) 24px 50px;
+}
+.lbrand::before,.lbrand::after{content:"";position:absolute;border-radius:50%;pointer-events:none}
+.lbrand::before{width:340px;height:340px;right:-120px;top:-140px;background:radial-gradient(closest-side,rgba(255,255,255,.3),transparent)}
+.lbrand::after{width:300px;height:300px;left:-110px;bottom:-130px;background:radial-gradient(closest-side,rgba(40,10,110,.4),transparent)}
+.lb-in{position:relative;z-index:1;display:flex;flex-direction:column;height:100%}
+.lb-logo{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;letter-spacing:-.01em}
+.lb-logo img{width:34px;height:34px;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.lb-stage{position:relative;flex:1;min-height:0}
+
+/* judul mobile (sesuai mode) */
+.lb-mob{display:none;margin-top:16px}
+.lb-mob h2{font-size:24px;line-height:1.15;font-weight:800;letter-spacing:-.03em}
+.lb-mob p{margin-top:6px;font-size:13.5px;line-height:1.45;color:rgba(255,255,255,.85)}
+#lpage[data-mode="login"] .lm-login,
+#lpage[data-mode="register"] .lm-reg,
+#lpage[data-mode="username"] .lm-name{display:block}
+
+/* teks desktop (ajakan pindah mode) + gelembung */
+.lb-copy,.lb-bubbles{display:none}
+
+/* ---------- panel form ---------- */
+.lform{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;background:var(--bg)}
+.lf-scroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;padding:20px 22px calc(28px + env(safe-area-inset-bottom,0px))}
+.lf-wrap{position:relative;width:100%;max-width:380px;margin:auto;display:grid}
+/* semua form ditumpuk di satu sel grid: tinggi mengikuti yang tertinggi, tidak ada loncatan layout */
+.lf{
+  grid-area:1/1;align-self:center;
+  opacity:0;visibility:hidden;pointer-events:none;transform:translateX(22px);
+  transition:opacity .25s ease,transform .45s var(--lease),visibility 0s .25s;
+}
+#lpage[data-mode="register"] .lf-login,
+#lpage[data-mode="username"] .lf-login{transform:translateX(-22px)}
+#lpage[data-mode="login"] .lf-login,
+#lpage[data-mode="register"] .lf-reg,
+#lpage[data-mode="username"] .lf-name{
+  opacity:1;visibility:visible;pointer-events:auto;transform:none;
+  transition:opacity .4s .18s ease,transform .5s .12s var(--lease),visibility 0s;
+}
+
+.lf h1{font-size:28px;font-weight:800;letter-spacing:-.035em;line-height:1.1}
+.lsub{margin-top:8px;font-size:14px;line-height:1.5;color:var(--mut)}
+
+.lgw{margin-top:22px}
+.lgb{display:flex;justify-content:center;min-height:44px}
+.lor{display:flex;align-items:center;gap:10px;margin:16px 0 0;font-size:12px;color:var(--mut)}
 .lor::before,.lor::after{content:"";flex:1;height:1px;background:var(--line)}
-.lbox .ainp{margin-top:10px}
-.lbox .seg{margin-top:12px}
-.lprimary{display:block;width:100%;margin-top:12px;padding:12px;border-radius:12px;background:var(--ink);color:var(--bg);font-size:14px;font-weight:600;transition:transform .15s}
-.lprimary:active{transform:scale(.97)}
-.llink{display:block;margin:10px auto 0;padding:6px 10px;font-size:13px;color:var(--mut)}
+
+.lfld{display:block;margin-top:14px}
+.lfld.first{margin-top:22px}
+.lfld>span{display:block;margin-bottom:6px;font-size:12.5px;font-weight:600;color:var(--mut)}
+.lin{position:relative;display:flex;align-items:center}
+.lin>svg.ic{position:absolute;left:13px;width:18px;height:18px;fill:none;stroke:var(--mut);stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;pointer-events:none;transition:stroke .15s}
+.lin input{
+  display:block;width:100%;border:0;outline:0;background:var(--surface);color:var(--ink);border-radius:14px;
+  padding:13px 14px 13px 42px;font:inherit;font-size:16px;transition:box-shadow .15s;
+}
+.lin input::placeholder{color:var(--mut);opacity:.7}
+.lin input:focus{box-shadow:0 0 0 2px var(--ink)}
+.lin:focus-within>svg.ic{stroke:var(--ink)}
+.lin.pw input{padding-right:46px}
+.leye{position:absolute;right:6px;display:grid;place-items:center;width:36px;height:36px;border-radius:10px;color:var(--mut)}
+.leye:hover{color:var(--ink);background:var(--line)}
+.leye svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.leye .off{display:none}
+.leye.on .off{display:block}
+.leye.on .see{display:none}
+.lhint{margin-top:6px;font-size:12px;line-height:1.4;color:var(--mut)}
+
+.lprimary{
+  display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:20px;padding:14px;border-radius:14px;
+  background:var(--ink);color:var(--bg);font-size:15px;font-weight:700;letter-spacing:-.01em;transition:transform .15s,opacity .2s;
+}
+.lprimary:active{transform:scale(.98)}
+.lprimary .sp{display:none;width:15px;height:15px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:lspin .7s linear infinite}
+.sbusy .lprimary{opacity:.65;pointer-events:none}
+.sbusy .lprimary .sp{display:block}
+@keyframes lspin{to{transform:rotate(360deg)}}
+.llink{display:block;margin:12px auto 0;padding:6px 10px;font-size:13.5px;color:var(--mut)}
 .llink:hover{color:var(--ink)}
-.lstat{margin-top:10px;font-size:12.5px;line-height:1.4;color:var(--mut)}
+.lswap{display:none;margin-top:18px;text-align:center;font-size:13.5px;color:var(--mut)}
+.lswap button{padding:4px 2px;font-weight:700;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.lstat{margin-top:12px;font-size:12.5px;line-height:1.45;color:var(--mut);text-align:center}
 .lstat:empty{display:none}
 .lstat.err{color:var(--rec)}
 #gbtn{margin-top:8px;display:flex}
 #gbtn:empty{display:none}
+
+/* tab Masuk | Daftar (mobile) */
+.ltabs{
+  position:relative;flex:none;display:grid;grid-template-columns:1fr 1fr;margin:-24px 22px 0;padding:4px;border-radius:999px;
+  background:var(--surface);border:1px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.16);z-index:2;
+}
+.ltabs::before{
+  content:"";position:absolute;top:4px;bottom:4px;left:4px;width:calc(50% - 4px);border-radius:999px;background:var(--ink);
+  transition:transform .45s var(--lease);
+}
+#lpage[data-mode="register"] .ltabs::before{transform:translateX(100%)}
+.ltabs button{position:relative;padding:11px;border-radius:999px;font-size:14px;font-weight:700;color:var(--mut);transition:color .25s}
+#lpage[data-mode="login"] .ltabs [data-go="login"],
+#lpage[data-mode="register"] .ltabs [data-go="register"]{color:var(--bg)}
+#lpage[data-mode="username"] .ltabs{display:none}
+#lpage[data-mode="username"] .lf-scroll{padding-top:28px}
+
+/* mobile: header ringkas, judul sesuai mode */
 @media(max-width:799px){
-  #lmodal{align-items:flex-end;padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px))}
-  .lbox{max-width:none;border-radius:26px;padding:26px 20px 20px}
+  .lb-mob{display:none}
+  #lpage[data-mode="login"] .lm-login,
+  #lpage[data-mode="register"] .lm-reg,
+  #lpage[data-mode="username"] .lm-name{display:block}
+}
+/* layar pendek (HP landscape / keyboard terbuka): header mengecil agar form tetap terlihat */
+@media(max-width:799px) and (max-height:640px){
+  .lbrand{padding-top:calc(56px + env(safe-area-inset-top,0px));padding-bottom:40px}
+  .lb-mob p,.lb-logo span{display:none}
+  .lb-mob{margin-top:10px}
+  .lb-mob h2{font-size:20px}
+}
+
+/* ---------- desktop: dua panel, bergeser kiri/kanan ---------- */
+@media(min-width:800px){
+  #lpage{display:block}
+  .ltabs,.lb-mob,.lb-mob.lm-login{display:none!important}
+  .lback{top:20px;left:20px}
+  .lback .lb-long{display:inline}.lback .lb-short{display:none}
+  .lform,.lbrand{
+    position:absolute;top:0;bottom:0;width:50%;border-radius:0;
+    transition:transform .85s var(--lease);will-change:transform;
+  }
+  .lform{left:0;z-index:2}
+  .lbrand{left:50%;z-index:3;padding:92px clamp(40px,5vw,72px) 48px}
+  #lpage[data-mode="register"] .lform{transform:translateX(100%)}
+  #lpage[data-mode="register"] .lbrand{transform:translateX(-100%)}
+  .lf-scroll{padding:84px 48px 40px}
+
+  .lb-stage{margin-top:8vh}
+  .lb-copy{
+    position:absolute;left:0;right:0;top:0;display:block;
+    opacity:0;visibility:hidden;transform:translateY(12px);
+    transition:opacity .3s ease,transform .4s ease,visibility 0s .3s;
+  }
+  .lb-copy h2{font-size:clamp(30px,3.3vw,46px);line-height:1.08;font-weight:800;letter-spacing:-.035em;text-wrap:balance}
+  .lb-copy p{margin-top:14px;max-width:360px;font-size:15px;line-height:1.55;color:rgba(255,255,255,.86)}
+  #lpage[data-mode="login"] .lb-to-reg,
+  #lpage[data-mode="username"] .lb-to-reg,
+  #lpage[data-mode="register"] .lb-to-login{
+    opacity:1;visibility:visible;transform:none;
+    transition:opacity .5s .35s ease,transform .6s .35s ease,visibility 0s;
+  }
+  .lb-cta{
+    margin-top:26px;display:inline-flex;align-items:center;gap:8px;padding:13px 26px;border-radius:999px;
+    font-size:14.5px;font-weight:700;color:#fff;border:1.5px solid rgba(255,255,255,.8);
+    transition:background .2s,color .2s,transform .15s;
+  }
+  .lb-cta:hover{background:#fff;color:var(--lg3)}
+  .lb-cta:active{transform:scale(.96)}
+  .lb-cta svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+
+  .lb-bubbles{position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:10px;pointer-events:none}
+  .lbb{
+    max-width:80%;padding:11px 15px;border-radius:18px 18px 18px 6px;font-size:13.5px;line-height:1.4;
+    background:rgba(255,255,255,.17);border:1px solid rgba(255,255,255,.28);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:lfloat 6s ease-in-out infinite;
+  }
+  .lbb.me{align-self:flex-end;border-radius:18px 18px 6px 18px;background:rgba(255,255,255,.93);color:#2b1a5e;border-color:transparent;animation-delay:-2s}
+  .lbb:nth-child(3){animation-delay:-4s}
+  @keyframes lfloat{50%{transform:translateY(-6px)}}
+
+  .lswap{display:block}
+  /* tombol kembali: gelap di atas form (terang), putih di atas panel brand */
+  #lpage[data-mode="login"] .lback,
+  #lpage[data-mode="username"] .lback{color:var(--ink);background:var(--surface);border-color:var(--line)}
+  #lpage[data-mode="login"] .lback:hover,
+  #lpage[data-mode="username"] .lback:hover{background:var(--line)}
+}
+@media(min-width:800px) and (max-height:680px){.lb-bubbles{display:none}.lb-stage{margin-top:3vh}}
+
+@media(prefers-reduced-motion:reduce){
+  .lform,.lbrand,.lf,.lb-copy,.ltabs::before{transition-duration:.01ms!important;transition-delay:0s!important}
+  .lbb{animation:none}
 }

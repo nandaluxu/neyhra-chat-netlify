@@ -11,6 +11,7 @@
      /profile        Profil sendiri (otomatis dirapikan jadi /profile/<usernameku>)
      /profile/<user> Profil satu akun (mis. /profile/neyhra); username huruf kecil a-z 0-9 _ . - (3-20)
      /settings       Pengaturan
+     /login          Halaman Masuk / Daftar (layar penuh, public/login.js)
    Cara kerja: URL mengikuti layar yang tampil (diamati dari kelas DOM), dan tombol back/forward browser
    membuka/menutup layar lewat fungsi yang sudah ada. Tidak ada kode layar yang diubah.
    Server harus menjawab semua alamat di atas dengan index.html (vercel.json `rewrites` + lib/app.js untuk lokal). */
@@ -24,6 +25,7 @@
 
   // alamat yang sesuai dengan layar yang sedang tampil (urutan = layar paling atas dulu)
   function curPath() {
+    if (appEl.classList.contains('login-open')) return '/login' // halaman Masuk/Daftar (login.js) menutupi semuanya
     if (!setEl.classList.contains('hide')) return '/settings'
     if (gcEl.classList.contains('show')) return '/global'
     if (appEl.dataset.tab === 'bonus') return '/bonus'
@@ -52,11 +54,13 @@
     applying++
     try {
       const m = /^\/chat\/([\w-]+)$/.exec(path), pm = /^\/profile\/([A-Za-z0-9_.-]{3,20})$/.exec(path), tm = /^\/tools(?:\/([a-z0-9-]{1,32}))?$/.exec(path)
-      // 1) tutup yang menutupi: pengaturan, chat global
+      // 1) tutup yang menutupi: halaman login, pengaturan, chat global
+      if (path !== '/login' && appEl.classList.contains('login-open') && window.closeLogin) closeLogin()
       if (path !== '/settings' && !setEl.classList.contains('hide')) $('sx').click()
       if (path !== '/global' && gcEl.classList.contains('show')) $('gc-back').click()
       // 2) layar tujuan
-      if (path === '/settings') { if (setEl.classList.contains('hide')) $('setbtn').click() }
+      if (path === '/login') { if (window.openLogin) openLogin() } // sudah masuk = openLogin diam, URL dirapikan ke / oleh sync()
+      else if (path === '/settings') { if (setEl.classList.contains('hide')) $('setbtn').click() }
       else if (path === '/global') { if (!gcEl.classList.contains('show')) $('gcbtn').click() }
       else if (m) {
         for (let i = 0; i < 50 && !chars().length; i++) await wait(100) // tunggu daftar karakter dimuat
