@@ -146,6 +146,18 @@ Server: `lib/quests.js` (dipasang lewat `mountQuests` di `lib/auth.js`). Client:
 - **API** (POST, token Bearer): `/api/auth/quests` -> `{ quests:[3 aktif + progres], ach:[semua piala + progres], streak, lb:{top, rank, pts}, resetMs }`.
 - **Atur hadiah/pool**: `QUESTS`, `ACHV`, `QUEST_PTS` di atas `lib/quests.js`. Tidak perlu mengubah file lain.
 
+## Level Akun (`lib/leveling.js`)
+
+Leveling **akun pemain** (beda dengan level hubungan karakter di bawah). Server: `lib/leveling.js` + `lib/xpext.js`. Frontend belum ada — spesifikasi UI-nya lengkap di [docs/frontend/leveling-system.md](docs/frontend/leveling-system.md). Perlu akun + MongoDB. Uji: `npm run level:e2e` (25 asersi, jalan tanpa Mongo terpasang lewat mongodb-memory-server).
+
+- **Sumber XP** (semua server-side, client tidak bisa mengirim jumlah XP): pesan **Chat Global** terkirim (+5, cap 150/hari), **lama main di web** lewat heartbeat `/api/online` (+1 tiap ≥ 4 menit, cap 120/hari — multi-tab tidak bisa mempercepat), **menang minigame** (+15, cap 150/hari; menang tetap tercatat walau hadiah coin mentok batas hariannya), dan **`ext`** dari luar web tanpa cap (lihat API eksternal di bawah). Cap reset 00.00 WIB.
+- **Kurva**: XP naik level = `80 + 40×(level-1)` (L2=80, L10=2.160, L100=201.960), mentok level 100. Naik level = hadiah otomatis `30+5×level` coin (+5 gems tiap kelipatan 5) + toast "Naik ke Level X!" + piala baru `alv10/alv25/alv50` (Profil → Piala) + notifikasi tipe `level`.
+- **Pengali hadiah minigame**: `1 + 0,02×(level-1)` (maks 2,5×) — Tebak Angka/Tebak Gambar/2048/Word Search/Catur (menang & seri). Respons game memuat `mul`; `reward`/`gain` sudah dikalikan (dibulatkan ke bawah); batas coin harian tiap game tetap absolut. Slot & gacha sengaja tanpa pengali.
+- **Koleksi**: `level` `{ _id: userId, xp, lvl, capDay, cap, stats, lastBeat }`, `xp_log` (riwayat, TTL 90 hari). Hapus akun membersihkan (`purgeLevel`). Kenaikan level dibayar atomik sekali (`lvl` dijaga filter update), XP tidak pernah minus.
+- **API akun** (POST, Bearer): `/api/auth/level` -> level, xp, progres, cap harian, pengali, riwayat, top-10. Field baru di endpoint lama: `level` di `/api/auth/me`, `lv` di `/api/gc/send` & `/api/online` (muncul saat XP bertambah), `mul` di respons semua game, sub **Lainnya → Level Akun** di `/api/auth/lb` (cfg dinamis: UI Peringkat lama langsung menampilkannya).
+- **API eksternal** (`lib/xpext.js`, tanpa Bearer — kunci env `LEVEL_EXT_KEY` di header `x-api-key`; tanpa env ini endpoint mati/501): `POST /api/xp/grant` `{ uid|username, amount|setLevel, reason? }` menambah XP (boleh negatif untuk koreksi, XP dijaga ≥ 0) atau melompat ke level tertentu; `POST /api/xp/lookup` membaca level akun. Buat event/giveaway/bot dari luar web — grant tercatat di `xp_log` (src `ext`, `note` = reason).
+- **Atur angka tanpa deploy ulang kode**: env `LEVEL_BASE`, `LEVEL_STEP`, `LEVEL_MAX`, `LEVEL_MUL_STEP`, `LEVEL_MUL_CAP`, `LEVEL_XP_GC`, `LEVEL_XP_WIN`, `LEVEL_CAP_GC`, `LEVEL_CAP_TIME`, `LEVEL_CAP_WIN`. `levelOf()` selalu dihitung dari total XP, jadi mengubah kurva di tengah jalan aman (hadiah hanya dibayar untuk kenaikan baru).
+
 ## Toko + Inventory (hadiah untuk menaikkan hubungan)
 
 Tab **Toko** di navbar (alamat `/shop`). Perlu akun. Tab Toko sekarang punya **3 bagian** (sub-navigasi `#shnav`): **Belanja** (`public/shop.js`), **Gacha**, dan **Tukar** (keduanya `public/economy.js`). Ikon barang di `public/shop/*.svg`.

@@ -16,6 +16,7 @@
     "pipe:test": "node scripts/turnpipe-test.mjs",
     "group:test": "node scripts/group-flow-test.mjs",
     "call:test": "node scripts/call-flow-test.mjs",
+    "level:e2e": "node scripts/level-e2e.mjs",
     "music:test": "node scripts/music-import-test.mjs",
     "music:ui": "node scripts/music-ui-test.mjs",
     "netlify:dev": "netlify dev"

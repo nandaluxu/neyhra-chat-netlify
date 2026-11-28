@@ -16,6 +16,7 @@
 <script>
   window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
 </script>
+<script defer src="/_vercel/speed-insights/script.js"></script>
 <style>
 :root{--bg:#fff;--surface:#f3f3f4;--ink:#111;--mut:#8b8b92;--line:#e8e8ea;--me:#111;--me-ink:#fff;--on:#111;--off:#d4d4d8;--rec:#e5484d;--ok:#30a46c}
 @media(prefers-color-scheme:dark){:root{--bg:#0b0b0c;--surface:#1a1a1c;--ink:#f2f2f3;--mut:#8b8b92;--line:#26262a;--me:#f2f2f3;--me-ink:#0b0b0c;--on:#f2f2f3;--off:#3a3a40}}
@@ -573,7 +574,7 @@ header .pfp,header .who{cursor:pointer}
 #pronote button{flex:none;padding:9px 16px;border-radius:99px;background:var(--bg);color:var(--ink);font-size:13px;font-weight:600}
 </style>
 <link rel="stylesheet" href="/group.css">
-<link rel="stylesheet" href="/globalchat.css?v=20261127e">
+<link rel="stylesheet" href="/globalchat.css">
 <link rel="stylesheet" href="/extras.css">
 <link rel="stylesheet" href="/shell.css">
 <link rel="stylesheet" href="/home.css">
@@ -596,10 +597,11 @@ header .pfp,header .who{cursor:pointer}
 <link rel="stylesheet" href="/scene.css">
 <link rel="stylesheet" href="/vision.css">
 <link rel="stylesheet" href="/call.css">
+<link rel="stylesheet" href="/level.css">
 <link rel="stylesheet" href="/profile.css?v=20261119h">
 <link rel="stylesheet" href="/notify.css">
 <link rel="stylesheet" href="/music.css">
-<link rel="stylesheet" href="/login.css?v=20261127a">
+<link rel="stylesheet" href="/login.css">
 <link rel="stylesheet" href="/chatui.css">
 <link rel="stylesheet" href="/minigame.css?v=20261124a">
 <link rel="stylesheet" href="/bg.css?v=20261124a">
@@ -2244,11 +2246,12 @@ function paintWallet(w){
   });
 }
 const loadWallet=()=>{ try{ const w=JSON.parse(store.get('wallet')||'null'); return w&&Number.isFinite(w.coins)&&Number.isFinite(w.gems)?w:null; }catch{ return null; } };
-const saveWallet=w=>{ store.set('wallet',w?JSON.stringify({coins:w.coins,gems:w.gems,tickets:Number.isFinite(w.tickets)?w.tickets:0,chips:Number.isFinite(w.chips)?w.chips:0}):null); paintWallet(w); }; /* tickets & chips ikut tersimpan (wallet lama tanpa chips = 0) */
+const saveWallet=w=>{ try{ const lvn=!w?null:(Number.isFinite(w.level)?w.level:undefined); if(lvn!==undefined){ if(window.LEVEL) LEVEL.set(lvn); else store.set('acclv',lvn==null?null:String(lvn)); } }catch{} /* badge level akun (public/level.js): ikut `level` dari /api/auth/me; null = keluar */
+  store.set('wallet',w?JSON.stringify({coins:w.coins,gems:w.gems,tickets:Number.isFinite(w.tickets)?w.tickets:0,chips:Number.isFinite(w.chips)?w.chips:0}):null); paintWallet(w); }; /* tickets & chips ikut tersimpan (wallet lama tanpa chips = 0) */
 function paintAcct(cloud){
   syncUname();
   window.__acctSeen=1; window.dispatchEvent(new Event('acct')); /* bonus.js ikut menyegarkan (status akun / masuk / keluar berubah) */
-  sacct.classList.toggle('hide',!(aOn&&atok)); /* belum masuk: grup Akun tidak ada di Pengaturan (login = halaman penuh, openLogin() di login.js) */
+  sacct.classList.toggle('hide',!(aOn&&atok)); /* belum masuk: grup Akun tidak ada di Pengaturan (login = overlay, openLogin() di login.js) */
   ain.classList.toggle('hide',!atok);
   if(atok){ $('aname').textContent=store.get('authname')||''; if(cloud!==undefined) $('acloud').textContent=cloud?fmtB(cloud.size)+' · '+new Date(cloud.updatedAt).toLocaleString('id-ID',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'belum ada'; }
 }
@@ -3535,7 +3538,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) setTimeo
     try{
       const j=await (await post('/api/online',{clientId:cid})).json();
       if(!j.enabled){ off=true; box.classList.add('hide'); return; }
-      num.textContent=j.count; box.classList.remove('hide');
+      num.textContent=j.count; box.classList.remove('hide'); if(j.lv&&window.LEVEL) LEVEL.gain(j.lv); /* XP lama-main -> toast level-up bila naik */
     }catch{}
     tm=setTimeout(beat,60000);
   }
@@ -3547,7 +3550,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) setTimeo
 <script src="/turnpipe.js"></script>
 <script src="/group.js"></script>
 <script src="/globalchat.adapter.js"></script>
-<script src="/globalchat.js?v=20261127e"></script>
+<script src="/globalchat.js"></script>
 <script src="/extras.js"></script>
 <script src="/shell.js"></script>
 <script src="/bonus.js"></script>
@@ -3561,6 +3564,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) setTimeo
 <script src="/g2048.js"></script>
 <script src="/wordsearch.js"></script>
 <script src="/scenario.js"></script>
+<script src="/level.js"></script>
 <script src="/profile.js?v=20261123a"></script>
 <script src="/cdetail.js?v=20261123a"></script>
 <script src="/notify.js?v=20261119g"></script>
@@ -3576,7 +3580,7 @@ document.addEventListener('visibilitychange',()=>{ if(!document.hidden) setTimeo
 <script src="/vision.js"></script>
 <script src="/call.js"></script>
 <script src="/tools/tools.js"></script>
-<script src="/login.js?v=20261127a"></script>
+<script src="/login.js"></script>
 <script src="/router.js"></script>
 <script src="/bg.js?v=20261124a"></script>
 </body>
