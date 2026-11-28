@@ -52,8 +52,61 @@ function set(n) {
   const v = Math.floor(Number(n));
   level = Number.isFinite(v) && v >= 1 ? v : null;
   lsSet('acclv', level == null ? null : String(level));
-  paintBadges();
+  paintBadges(); paintMine();
 }
+
+/* ---------- Badge frame level (di samping nama: Profil & Chat Global) ----------
+   Level 1-100, ganti frame tiap 5 level = 20 tier. Level >100 tetap memakai tier terakhir.
+   Bentuk frame naik bertahap (kelompok g1-g5, lihat level.css); warna per tier dari TIERS. [nama, warna1, warna2, warna teks] */
+const TIERS = [
+  ['Pemula',   '#9aa3ad', '#c3c9d0', '#1d242b'], // Lv 1-5
+  ['Hijau',    '#3fae6a', '#7fd9a0', '#08301a'], // 6-10
+  ['Tosca',    '#1fb5ad', '#6fe3dc', '#033532'], // 11-15
+  ['Biru',     '#3b82f6', '#7db1ff', '#fff'],    // 16-20
+  ['Ungu',     '#8b5cf6', '#b9a0ff', '#fff'],    // 21-25
+  ['Pink',     '#ec4899', '#ff9acb', '#fff'],    // 26-30
+  ['Oranye',   '#f97316', '#ffb36b', '#2f1300'], // 31-35
+  ['Merah',    '#ef4444', '#ff8a8a', '#fff'],    // 36-40
+  ['Perunggu', '#a8672a', '#e0a066', '#fff'],    // 41-45
+  ['Perak',    '#8e9aa8', '#e4e9ee', '#1d242b'], // 46-50
+  ['Emas',     '#d99a0b', '#ffe27a', '#3a2600'], // 51-55
+  ['Platinum', '#5fc4d9', '#e8fbff', '#06323b'], // 56-60
+  ['Zamrud',   '#0f9d58', '#8cf0b8', '#fff'],    // 61-65
+  ['Safir',    '#1d4ed8', '#7aa2ff', '#fff'],    // 66-70
+  ['Rubi',     '#be123c', '#ff7a9c', '#fff'],    // 71-75
+  ['Ametis',   '#6d28d9', '#d19cff', '#fff'],    // 76-80
+  ['Berlian',  '#22b8f0', '#e6f9ff', '#04304a'], // 81-85
+  ['Api',      '#ff5a1f', '#ffd23f', '#3a1200'], // 86-90
+  ['Galaksi',  '#4338ca', '#e879f9', '#fff'],    // 91-95
+  ['Legenda',  '#f59e0b', '#fde68a', '#3a2000']  // 96-100 (Lv 100 = pelangi + mahkota)
+];
+const MAXLV = 100;
+const tierOf = lv => Math.min(TIERS.length, Math.max(1, Math.ceil(Math.min(Math.max(1, lv), MAXLV) / 5))); // 1..20
+const groupOf = t => t <= 4 ? 1 : t <= 8 ? 2 : t <= 12 ? 3 : t <= 16 ? 4 : 5; // bentuk frame
+const okLv = v => Number.isFinite(v) && v >= 1;
+function paintBadge(b, lv) {
+  const n = Math.floor(Number(lv));
+  if (!okLv(n)) { b.classList.add('hide'); return; }
+  const t = tierOf(n), T = TIERS[t - 1];
+  b.className = 'lvb t' + t + ' g' + groupOf(t) + (n >= MAXLV ? ' max' : '') + (b.dataset.me ? ' me' : '');
+  b.style.setProperty('--b1', T[1]); b.style.setProperty('--b2', T[2]); b.style.setProperty('--bt', T[3]);
+  b.dataset.tier = String(t);
+  b.querySelector('b').textContent = nf.format(n);
+  b.title = 'Level ' + nf.format(n) + ' · ' + T[0];
+  b.setAttribute('aria-label', 'Level ' + nf.format(n) + ', tier ' + T[0]);
+}
+/* badge(lv, { me:true }) -> elemen <span class="lvb">. me:true = ikut berubah otomatis saat levelmu naik (set/gain/nq).
+   Level tidak valid -> null (kecuali me:true: elemen tersembunyi menunggu level terisi). */
+function badge(lv, opt) {
+  const me = !!(opt && opt.me), v = me && lv == null ? level : lv;
+  if (!me && !okLv(Math.floor(Number(v)))) return null;
+  const b = h('span', 'lvb'); b.setAttribute('role', 'img');
+  if (me) b.dataset.me = '1';
+  b.append(h('i', 'lvb-o'), h('small', null, 'Lv'), h('b', null, '1'));
+  paintBadge(b, v);
+  return b;
+}
+const paintMine = () => document.querySelectorAll('.lvb[data-me]').forEach(b => paintBadge(b, level));
 
 /* ---------- Toast level-up (teks + confetti ringan; TANPA suara) ---------- */
 let toastEl = null, toastT = 0;
@@ -289,7 +342,7 @@ function panel(el) {
 function open() {
   try { if (window.PF && PF.openTab) PF.openTab('level'); else if (window.Shell) Shell.setTab('profile'); } catch {}
 }
-window.addEventListener('acct', () => { if (!signedIn()) { level = null; S.data = null; lsSet('acclv', null); } paintBadges(); });
+window.addEventListener('acct', () => { if (!signedIn()) { level = null; S.data = null; lsSet('acclv', null); } paintBadges(); paintMine(); });
 window.addEventListener('shell:tab', e => { if (e.detail !== 'profile') { clearInterval(S.tick); } });
 
 // klik notifikasi bertipe `level` di bel -> panel Level Akun
@@ -297,6 +350,6 @@ try { window.NOTIF && NOTIF.route('level', open); } catch {}
 window.addEventListener('load', () => { try { window.NOTIF && NOTIF.route('level', open); } catch {} paintBadges(); });
 
 const rest = list => (Array.isArray(list) ? list.filter(t => !(typeof t === 'string' && NQ_RE.test(t))) : []); // nq tanpa catatan level-up (yang itu sudah jadi toast level-up sendiri)
-window.LEVEL = { set, gain, nq, rest, chip, panel, open, level: () => level };
+window.LEVEL = { set, gain, nq, rest, chip, panel, open, level: () => level, badge, tier: tierOf, refresh: () => load(false) };
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', paintBadges); else paintBadges();
 })();

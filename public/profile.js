@@ -103,7 +103,13 @@ function render() {
   if (!own) { const b = btn('pf-back', '', 'back'); b.innerHTML = ICON.back; b.append(document.createTextNode('Profilku')); body.append(b); }
 
   const card = h('div', 'pf-card'), top = h('div', 'pf-top'), who = h('div', 'pf-who');
-  who.append(h('h1', 'pf-name', p.name), h('div', 'pf-handle', '@' + p.username));
+  const nrow = h('div', 'pf-namerow'); nrow.append(h('h1', 'pf-name', p.name));
+  if (window.LEVEL && LEVEL.badge) { // badge level di kanan nama: profil sendiri ikut level akun (otomatis naik), profil orang lain dari p.level / p.lv bila server mengirimnya
+    const lb = own ? LEVEL.badge(null, { me: true }) : LEVEL.badge(p.level != null ? p.level : p.lv);
+    if (lb) nrow.append(lb);
+    if (own && LEVEL.level() == null && LEVEL.refresh) LEVEL.refresh(); // level belum pernah termuat -> ambil dulu, badge terisi sendiri
+  }
+  who.append(nrow, h('div', 'pf-handle', '@' + p.username));
   top.append(avatar(p.name, p.username, p.avatar), who);
   card.append(top);
   card.append(h('p', 'pf-bio' + (p.bio ? '' : ' none'), p.bio || (own ? 'Belum ada bio. Ketuk Edit profil untuk menambahkannya.' : 'Belum ada bio.')));

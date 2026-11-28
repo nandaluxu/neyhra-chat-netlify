@@ -212,7 +212,11 @@ function bubble(m, o, find) {
   r.dataset.id = m.id;
   if (!o.mine) { r.style.setProperty('--h', hue(m.senderId)); const av = el('span', o.last ? 'gc-av' : 'gc-av sp', o.last ? [...m.senderName][0] || '?' : ''); av.setAttribute('aria-hidden', 'true'); if (o.last) addPhoto(av, m); r.append(av); }
   const b = el('div', 'gc-b');
-  if (!o.mine && o.first) b.append(el('div', 'gc-n', m.senderName));
+  if (!o.mine && o.first) {
+    const lv = window.LEVEL && LEVEL.badge ? LEVEL.badge(o.lv != null ? o.lv : m.lv) : null; // badge level pengirim (server mengirim `lv` di tiap pesan); level.js dimuat setelah file ini, jadi dicek saat render
+    if (lv) { const n = el('div', 'gc-n has-lv'); n.append(el('span', 'gc-nm', m.senderName), lv); b.append(n); }
+    else b.append(el('div', 'gc-n', m.senderName));
+  }
   if (m.replyTo) b.append(replyQuote(m, find));
   if (m.img) b.append(imgNode(m));
   if (m.text) b.append(el('div', 'gc-t', m.text));
@@ -302,6 +306,7 @@ function paintList(s) {
   if (!msgs.length) frag.append(emptyView(s));
   else {
     const byId = new Map(msgs.map(x => [x.id, x])); // lookup untuk pratinjau balasan
+    const lvBy = new Map(); for (const x of msgs) if (x.lv != null) lvBy.set(x.senderId, x.lv); // level terbaru tiap pengirim (pesan urut lama -> baru): pesan lamanya ikut tampil dengan level terkini
     let lastDay = '';
     msgs.forEach((m, i) => {
       const p = msgs[i - 1], n = msgs[i + 1], dk = dayKey(m.ts);
@@ -311,7 +316,7 @@ function paintList(s) {
       const isNew = !seen.has(m.id);
       if (isNew) { seen.add(m.id); if (primed && !older) { added++; isMine(m) ? mine++ : other++; } }
       const mMine = isMine(m);
-      frag.append(bubble(m, { mine: mMine, first: !cont, last: !more, fresh: primed && isNew && !older }, id => byId.get(id)));
+      frag.append(bubble(m, { mine: mMine, first: !cont, last: !more, fresh: primed && isNew && !older, lv: lvBy.get(m.senderId) }, id => byId.get(id)));
       const rr = readReceiptsNode(m.id, readsByMsg.get(m.id), mMine);
       if (rr) frag.append(rr);
     });
